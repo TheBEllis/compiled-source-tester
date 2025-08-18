@@ -7,7 +7,10 @@ InputParameters
 CompiledSourceTestingProblem::validParams()
 {
   InputParameters params = ExternalProblem::validParams();
-  params.addRequiredParam<int>("strength_type", "da");
+  params.addRequiredParam<int>("strength_type",
+                               "Parameter to determine whether to use uniform source term that's "
+                               "identical for all elements, or whether to have a steadily "
+                               "increasing strength source term in the x direction.");
   return params;
 }
 
@@ -22,9 +25,9 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
 
     if (strength_type == 1)
     {
+      // If source_type = 1, then make our source strentch increase in the z direction, just to give
+      // a good visual and test different element strengths
       double x_val = element_ptr->true_centroid()(0) + 50;
-      std::cout << x_val << std::endl;
-      // energy_spectra.assign(24, element_ptr->id());
       energy_spectra.assign(24, x_val);
     }
 
@@ -35,17 +38,7 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
   _photon_bins = {1e-11, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1,  1.22, 1.44,
                   1.66,  2,    2.5,  3,    4,   5,   6.5, 8,   10,  12,  14, 20};
 
-  // for (int i = 0; i < _photon_bins.size(); i++)
-  // {
-  //   if (i == 0)
-  //   {
-  //     continue;
-  //   }
-  //   _photon_bins[i] *= 1e6;
-  // }
-
   getTotalDomainStrength();
-  std::cout << _total_domain_strength << " " << _local_domain_strength << std::endl;
 }
 
 void

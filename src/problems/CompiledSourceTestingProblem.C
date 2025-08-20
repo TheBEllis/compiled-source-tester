@@ -18,6 +18,7 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
   : ExternalProblem(params)
 {
 
+  std::ofstream centroid_out("centroids.csv");
   int strength_type = getParam<int>("strength_type");
   for (libMesh::Elem * element_ptr : _mesh.getMesh().active_local_element_ptr_range())
   {
@@ -28,6 +29,7 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
       // If source_type = 1, then make our source strentch increase in the z direction, just to give
       // a good visual and test different element strengths
       double x_val = element_ptr->true_centroid()(0) + 50;
+      centroid_out << x_val << ",";
       energy_spectra.assign(24, x_val);
     }
 
@@ -37,7 +39,15 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
   }
   _photon_bins = {1e-11, 0.01, 0.02, 0.05, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1,  1.22, 1.44,
                   1.66,  2,    2.5,  3,    4,   5,   6.5, 8,   10,  12,  14, 20};
-
+  for (auto & bin : _photon_bins)
+  {
+    if (bin < 0.001)
+    {
+      continue;
+    }
+    bin *= 1e6;
+  }
+  std::cout << _photon_bins[0] << " " << _photon_bins[1] << std::endl;
   getTotalDomainStrength();
 }
 

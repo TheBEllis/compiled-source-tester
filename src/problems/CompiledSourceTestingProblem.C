@@ -1,5 +1,9 @@
 #include "CompiledSourceTestingProblem.h"
 #include "PhotonSharingData.h"
+#include "mpi.h"
+#include "timpi/communicator.h"
+#include <cstdio>
+#include <unistd.h>
 
 registerMooseObject("CompiledSourceTesterApp", CompiledSourceTestingProblem);
 
@@ -17,7 +21,6 @@ CompiledSourceTestingProblem::validParams()
 CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters & params)
   : ExternalProblem(params)
 {
-
   std::ofstream centroid_out("centroids.csv");
   int strength_type = getParam<int>("strength_type");
   for (libMesh::Elem * element_ptr : _mesh.getMesh().active_local_element_ptr_range())
@@ -29,8 +32,7 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
       // If source_type = 1, then make our source strentch increase in the z direction, just to give
       // a good visual and test different element strengths
       double x_val = element_ptr->true_centroid()(0) + 50;
-      centroid_out << x_val << ",";
-      energy_spectra.assign(24, x_val);
+      energy_spectra.assign(23, x_val);
     }
 
     _photon_fluxes.insert(std::pair<int, std::vector<double>>(element_ptr->id(), energy_spectra));
@@ -47,7 +49,6 @@ CompiledSourceTestingProblem::CompiledSourceTestingProblem(const InputParameters
     }
     bin *= 1e6;
   }
-  std::cout << _photon_bins[0] << " " << _photon_bins[1] << std::endl;
   getTotalDomainStrength();
 }
 
@@ -78,7 +79,14 @@ CompiledSourceTestingProblem::syncSolutions(ExternalProblem::Direction direction
 
       // Give the shared memory region a name based on current MPI rank to
       // prevent clashes
-      std::string data_name = "SHARING_DATA_" + std::to_string(comm().rank());
+      char name[MPI_MAX_PROCESSOR_NAME];
+      int resultlength;
+      // Get ranks on current machine
+      // TIMPI::Communicator shmcomm;
+      // comm().split_by_type(OMPI_COMM_TYPE_CORE, 0, MPI_INFO_NULL, shmcomm);
+      //
+      const std::string data_name = generateInterprocessName();
+      // std::string data_name = "SHARING_DATA_" + std::to_string(comm().rank());
 
       // Remove any shared memory region with a similar name just in case
       bi::shared_memory_object::remove(data_name.c_str());
@@ -172,4 +180,17 @@ CompiledSourceTestingProblem::calculateMemorySize()
   // Really naive way of doing this, but currently giving a 20% buffer to
   // account for the memory space required by Boost allocators and such
   return memory_size * 2;
+}
+
+const std::string
+CompiledSourceTestingProblem::generateInterprocessName()
+{
+  char mpi_proc_name[MPI_MAX_PROCESSOR_NAME];
+  int len = 0;
+  int err = MPI_Get_processor_name(mpi_proc_name, &len);
+
+  std::string ipc_name = std::string(mpi_proc_name);
+  ipc_name += "_" + std::to_string(comm().rank());
+
+  return ipc_name;
 }
